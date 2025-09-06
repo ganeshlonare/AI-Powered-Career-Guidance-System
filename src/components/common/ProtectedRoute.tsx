@@ -5,7 +5,9 @@ import { useAuth } from '../../hooks/useAuth';
 const ProtectedRoute: React.FC = () => {
   const { user, loading } = useAuth();
   if (loading) return null; // keep UI unchanged; optionally spinner
-  return user ? <Outlet /> : <Navigate to="/signin/email" replace />;
+  if (!user) return <Navigate to="/signin/email" replace />;
+  if (user.verified === false) return <Navigate to="/verify-email" replace />;
+  return <Outlet />;
 };
 
 export default ProtectedRoute;

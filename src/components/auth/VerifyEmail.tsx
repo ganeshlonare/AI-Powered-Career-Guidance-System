@@ -23,8 +23,9 @@ const VerifyEmail: React.FC = () => {
       return;
     }
     if (!token) {
-      setStatus('error');
-      setMessage('Missing verification token. Please use the link sent to your email.');
+      // Likely landed here after sign up; show a friendly message
+      setStatus('idle');
+      setMessage(`A verification email has been sent to ${email}. Please check your inbox and click the link to verify.`);
       return;
     }
     (async () => {
@@ -97,8 +98,21 @@ const VerifyEmail: React.FC = () => {
           </Alert>
         )}
 
+        {/* Friendly card when we know user's email but no token provided */}
+        {status === 'idle' && message && user?.email && !searchParams.get('token') && (
+          <>
+            <Alert severity="info" sx={{ mb: 2 }}>
+              {message}
+            </Alert>
+            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+              <Button variant="outlined" onClick={() => window.open('https://mail.google.com', '_blank')}>Open Gmail</Button>
+              <Button variant="contained" onClick={() => navigate('/')}>Back to Home</Button>
+            </Box>
+          </>
+        )}
+
         {/* Manual email entry when needed */}
-        {(status === 'idle' || (status === 'error' && message?.toLowerCase().includes('email'))) && (
+        {(status === 'idle' || (status === 'error' && message?.toLowerCase().includes('email'))) && !user?.email && (
           <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
             <TextField
               label="Email"

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Typography, Button, Divider, TextField, Alert } from '@mui/material';
+import { Box, Typography, Button, Divider, TextField, Alert, InputAdornment, IconButton } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import GoogleIcon from '@mui/icons-material/Google';
 import GitHubIcon from '@mui/icons-material/GitHub';
@@ -8,7 +8,32 @@ import LinkedInIcon from '@mui/icons-material/LinkedIn';
 import FacebookIcon from '@mui/icons-material/Facebook';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useNavigate } from 'react-router-dom';
+import MailOutlineIcon from '@mui/icons-material/MailOutline';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useAuth } from '../hooks/useAuth';
+
+// Match Sign In input style
+const StyledTextField = styled(TextField)({
+  '& .MuiOutlinedInput-root': {
+    borderRadius: '24px',
+    backgroundColor: '#fff',
+    '& fieldset': {
+      borderColor: '#e0e0e0',
+    },
+    '&:hover fieldset': {
+      borderColor: '#d0d0d0',
+    },
+    '&.Mui-focused fieldset': {
+      borderColor: '#462872',
+      borderWidth: '1px',
+    },
+  },
+  '& .MuiOutlinedInput-input': {
+    padding: '14px 20px',
+    fontSize: '0.95rem',
+  },
+});
 
 const WaveBackground = styled(Box)({
   position: 'relative',
@@ -76,7 +101,7 @@ const MainButton = styled(Button)({
 
 const SignUp = () => {
   const navigate = useNavigate();
-  const { register } = useAuth();
+  const { register, user } = useAuth();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -84,10 +109,18 @@ const SignUp = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleEmailClick = () => {
     navigate('/signin/email');
   };
+
+  // If already authenticated, redirect to dashboard
+  React.useEffect(() => {
+    if (user) {
+      navigate('/dashboard/overview', { replace: true });
+    }
+  }, [user, navigate]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,9 +132,9 @@ const SignUp = () => {
     setSubmitting(true);
     try {
       await register({ email, password, firstName, lastName });
-      setSuccess('Account created successfully! Redirecting to onboarding...');
-      // Redirect to onboarding per desired flow
-      navigate('/onboarding');
+      setSuccess('Account created successfully! Please complete the onboarding form.');
+      // Redirect to onboarding page
+      navigate('/onboarding', { replace: true });
     } catch (err: any) {
       setError(err?.message || 'Failed to create account. Please try again.');
     } finally {
@@ -119,43 +152,9 @@ const SignUp = () => {
         <Box sx={{ textAlign: 'center', mb: 3 }}>
           <img src="/yuja-logo.svg" alt="App Logo" style={{ height: '32px', marginBottom: '24px' }} />
           <Typography variant="h5" sx={{ fontWeight: 600, color: '#424446', mb: 3 }}>
-            Log in or sign up
+            sign up
           </Typography>
         </Box>
-
-        <MainButton
-          variant="contained"
-          fullWidth
-          startIcon={<GoogleIcon />}
-          sx={{
-            backgroundColor: '#462872',
-            color: '#fff',
-            mb: 2,
-            '&:hover': {
-              backgroundColor: '#3b2260'
-            }
-          }}
-        >
-          Continue with Google
-        </MainButton>
-
-        <MainButton
-          variant="outlined"
-          fullWidth
-          startIcon={<img src="/sso-icon.svg" alt="SSO" style={{ width: 20, height: 20 }} />}
-          sx={{
-            borderColor: '#e0e0e0',
-            color: '#424446',
-            '&:hover': {
-              borderColor: '#d0d0d0',
-              backgroundColor: '#f5f5f5'
-            }
-          }}
-        >
-          Continue with SSO
-        </MainButton>
-
-        <StyledDivider>or</StyledDivider>
 
         {/* Sign Up Form wired to backend */}
         {!!error && (
@@ -170,7 +169,7 @@ const SignUp = () => {
         )}
         <Box component="form" onSubmit={onSubmit} noValidate>
           <Box sx={{ display: 'flex', gap: 1.5, mb: 1.5 }}>
-            <TextField
+            <StyledTextField
               label="First name"
               fullWidth
               size="small"
@@ -178,7 +177,7 @@ const SignUp = () => {
               onChange={(e) => setFirstName(e.target.value)}
               required
             />
-            <TextField
+            <StyledTextField
               label="Last name"
               fullWidth
               size="small"
@@ -187,7 +186,7 @@ const SignUp = () => {
               required
             />
           </Box>
-          <TextField
+          <StyledTextField
             label="Email address"
             type="email"
             fullWidth
@@ -196,16 +195,37 @@ const SignUp = () => {
             onChange={(e) => setEmail(e.target.value)}
             required
             sx={{ mb: 1.5 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <MailOutlineIcon sx={{ color: '#9e9e9e' }} />
+                </InputAdornment>
+              ),
+            }}
           />
-          <TextField
+          <StyledTextField
             label="Password"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             fullWidth
             size="small"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             sx={{ mb: 2 }}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    onClick={() => setShowPassword((p) => !p)}
+                    onMouseDown={(e) => e.preventDefault()}
+                    edge="end"
+                  >
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
           />
           <Box sx={{ display: 'flex', gap: 1 }}>
             <MainButton
@@ -232,6 +252,25 @@ const SignUp = () => {
             )}
           </Box>
         </Box>
+
+        {/* Divider and Google option moved below form */}
+        <StyledDivider>or</StyledDivider>
+        <Button
+          variant="text"
+          fullWidth
+          startIcon={<GoogleIcon sx={{ color: '#462872' }} />}
+          sx={{
+            color: '#462872',
+            textTransform: 'none',
+            fontSize: '0.95rem',
+            fontWeight: 600,
+            padding: '10px 12px',
+            mb: 2,
+            '&:hover': { backgroundColor: 'transparent', textDecoration: 'underline' }
+          }}
+        >
+          Continue with Google
+        </Button>
 
         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 3 }}>
           <SocialButton>
@@ -263,7 +302,7 @@ const SignUp = () => {
             }
           }}
         >
-          Continue with email address
+          If account already exists, then sign in
         </Button>
 
         <Typography 

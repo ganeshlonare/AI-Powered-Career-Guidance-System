@@ -272,13 +272,14 @@ const Onboarding = () => {
     }
   }, [loading, user, navigate, refresh, verifyingUser]);
 
-  // After refresh, if still unverified, redirect to verify page
+  // If already onboarded (local flag), do not allow visiting this page again
   React.useEffect(() => {
-    if (loading) return;
-    if (user && user.verified === false && !verifyingUser) {
-      navigate('/verify-email', { replace: true });
+    const onboarded = typeof window !== 'undefined' && localStorage.getItem('cg_onboarded') === '1';
+    if (!loading && user && onboarded) {
+      navigate('/dashboard/overview', { replace: true });
     }
-  }, [loading, user, verifyingUser, navigate]);
+  }, [loading, user, navigate]);
+
 
   const handleFormChange = (section: keyof FormData, field: string, value: any) => {
     setFormData(prev => ({
@@ -363,8 +364,10 @@ const Onboarding = () => {
         projectExperience: onb.projectExperience,
         certifications: onb.certifications,
       });
-      // After onboarding, go to assessment per desired flow
-      navigate('/dashboard/assessment', { replace: true });
+      // Mark onboarding completed locally so ProtectedRoute allows access
+      try { localStorage.setItem('cg_onboarded', '1'); } catch {}
+      // After onboarding, go to assessment instructions page first
+      navigate('/assessment/instructions', { replace: true });
     } catch (e: any) {
       setError(e?.details?.message || e?.message || 'Failed to save onboarding details.');
     } finally {

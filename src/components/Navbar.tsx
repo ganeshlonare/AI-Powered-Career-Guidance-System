@@ -21,6 +21,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import { styled } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import { useAuth } from '../hooks/useAuth';
 
 const Search = styled('div')(() => ({
   position: 'relative',
@@ -179,11 +180,11 @@ const SignUpButton = styled(Button)(({ theme }) => ({
 
 const Navbar = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [isSignedIn, setIsSignedIn] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const handleMobileMenuToggle = () => {
     setMobileMenuOpen(!mobileMenuOpen);
@@ -247,7 +248,7 @@ const Navbar = () => {
 
             {!isMobile && (
               <Box sx={{ display: 'flex', alignItems: 'center', ml: 3 }}>
-                {isSignedIn ? (
+                {user ? (
                   <SignUpButton 
                     onClick={handleGoToClassroom}
                     endIcon={<ArrowForwardIcon />}

@@ -127,7 +127,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onCollapse }) => {
     { path: '/dashboard/overview', label: 'Dashboard', icon: <DashboardIcon /> },
     { path: '/dashboard/roadmap', label: 'Roadmap', icon: <RouteIcon /> },
     { path: '/week-plan', label: 'Learning', icon: <SchoolIcon /> },
-    { path: '/dashboard/assessment', label: 'Assessment', icon: <AssessmentIcon /> },
+    { path: '/assessment/instructions', label: 'Assessment', icon: <AssessmentIcon /> },
     { path: '/industry-insights', label: 'Industry Insights', icon: <IndustryIcon /> },
     { path: '/dashboard/resume-builder', label: 'Resume Builder', icon: <ResumeIcon /> },
     { path: '/jobs', label: 'Jobs', icon: <IndustryIcon /> },
