@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -12,6 +12,9 @@ import {
   DialogContent,
   DialogActions,
   CircularProgress,
+  Snackbar,
+  Alert,
+  Chip,
 } from '@mui/material';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
@@ -170,6 +173,179 @@ const Quiz = () => {
   const [openSubmitConfirm, setOpenSubmitConfirm] = useState(false);
   const totalQuestions = questions.length || 15;
 
+  // Proctoring state
+  const [proctorDialogOpen, setProctorDialogOpen] = useState(true);
+  const [proctoringActive, setProctoringActive] = useState(false);
+  const [violationCount, setViolationCount] = useState(0);
+  const [warningOpen, setWarningOpen] = useState(false);
+  const [proctorError, setProctorError] = useState<string | null>(null);
+  const camStreamRef = useRef<MediaStream | null>(null);
+  const screenStreamRef = useRef<MediaStream | null>(null);
+  const shareInProgressRef = useRef(false);
+  const hiddenViolationRef = useRef(false);
+
+  const MAX_VIOLATIONS = 3;
+
+  // If user reaches assessment without preflight OK, send them to instructions.
+  // If preflight OK, auto-start proctoring (no extra dialog card).
+  useEffect(() => {
+    const ok = typeof window !== 'undefined' && localStorage.getItem('cg_proctor_preflight_ok') === '1';
+    if (!ok) {
+      navigate('/assessment/instructions', { replace: true });
+      return;
+    }
+    // Auto-start proctoring one time
+    (async () => {
+      try {
+        setProctorDialogOpen(false);
+        await startProctoring();
+      } catch {}
+    })();
+  }, [navigate]);
+
+  const cleanupProctoring = () => {
+    try {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+      window.removeEventListener('blur', onWindowBlur);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      window.removeEventListener('keydown', onKeyDown, true);
+    } catch {}
+    try { camStreamRef.current?.getTracks().forEach(t => t.stop()); } catch {}
+    try { screenStreamRef.current?.getTracks().forEach(t => t.stop()); } catch {}
+    camStreamRef.current = null;
+    screenStreamRef.current = null;
+    setProctoringActive(false);
+    try { if (document.fullscreenElement) document.exitFullscreen(); } catch {}
+    try { localStorage.removeItem('cg_proctor_preflight_ok'); } catch {}
+  };
+
+  const addViolation = () => {
+    setViolationCount(prev => {
+      const next = prev + 1;
+      setWarningOpen(true);
+      if (next >= MAX_VIOLATIONS) {
+        // Auto-submit on next tick to allow Snackbar to render
+        setTimeout(() => handleSubmit(), 250);
+      }
+      return next;
+    });
+  };
+
+  const onVisibilityChange = async () => {
+    if (shareInProgressRef.current) return;
+    if (document.hidden && proctoringActive) {
+      hiddenViolationRef.current = true;
+      addViolation();
+    } else if (!document.hidden && proctoringActive) {
+      // Returned to tab; if a hidden violation occurred, show a warning again and restore fullscreen
+      if (hiddenViolationRef.current) {
+        setWarningOpen(true);
+        hiddenViolationRef.current = false;
+      }
+      if (!document.fullscreenElement) {
+        try { await document.documentElement.requestFullscreen(); } catch {}
+      }
+    }
+  };
+
+  const onFullscreenChange = async () => {
+    if (shareInProgressRef.current) return;
+    if (proctoringActive && !document.fullscreenElement) {
+      addViolation();
+      // Try to immediately restore fullscreen
+      try { await document.documentElement.requestFullscreen(); } catch {}
+    }
+  };
+
+  const onWindowBlur = () => {
+    if (shareInProgressRef.current) return;
+    if (proctoringActive) addViolation();
+  };
+
+  const onBeforeUnload = (e: BeforeUnloadEvent) => {
+    if (proctoringActive) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  };
+
+  const onKeyDown = async (e: KeyboardEvent) => {
+    if (!proctoringActive) return;
+    // Attempt to block Escape; browsers may still exit fullscreen, so we also re-enter in fullscreenchange
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      // If somehow fullscreen was exited by ESC, try restoring
+      if (!document.fullscreenElement) {
+        try { await document.documentElement.requestFullscreen(); } catch {}
+      }
+    }
+  };
+
+  const startProctoring = async () => {
+    try {
+      setProctorError(null);
+      // Request fullscreen
+      await document.documentElement.requestFullscreen();
+      // Camera + mic
+      try {
+        const preCam: MediaStream | undefined = (window as any).__cg_camStream;
+        if (preCam && preCam.getTracks().some(t => t.readyState === 'live')) {
+          camStreamRef.current = preCam;
+        } else {
+          camStreamRef.current = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        }
+      } catch {
+        setProctorError('Camera and microphone permission is required to start the test.');
+        try { if (document.fullscreenElement) await document.exitFullscreen(); } catch {}
+        cleanupProctoring();
+        return;
+      }
+      // Screen share (some browsers require explicit user gesture; this is inside a button click)
+      try {
+        // Optional: screen capture. While the picker is open, browsers may exit fullscreen;
+        // mark shareInProgress to avoid counting a violation, and re-enter fullscreen afterwards.
+        shareInProgressRef.current = true;
+        const preScreen: MediaStream | undefined = (window as any).__cg_screenStream;
+        if (preScreen && preScreen.getTracks().some(t => t.readyState === 'live')) {
+          screenStreamRef.current = preScreen;
+        } else {
+          // @ts-ignore
+          screenStreamRef.current = await (navigator.mediaDevices as any).getDisplayMedia?.({ video: true, audio: false });
+        }
+        // After picker closes, try to re-enter fullscreen if not already
+        if (!document.fullscreenElement) {
+          try { await document.documentElement.requestFullscreen(); } catch {}
+        }
+      } catch {
+        setProctorError('Screen sharing permission is required to start the test.');
+        try { if (document.fullscreenElement) await document.exitFullscreen(); } catch {}
+        // Stop camera if it was started
+        try { camStreamRef.current?.getTracks().forEach(t => t.stop()); } catch {}
+        camStreamRef.current = null;
+        return;
+      }
+      finally {
+        shareInProgressRef.current = false;
+      }
+      // Clear any preflight globals now that we've adopted them
+      try { delete (window as any).__cg_camStream; } catch {}
+      try { delete (window as any).__cg_screenStream; } catch {}
+      // Listeners
+      document.addEventListener('visibilitychange', onVisibilityChange);
+      document.addEventListener('fullscreenchange', onFullscreenChange);
+      window.addEventListener('blur', onWindowBlur);
+      window.addEventListener('beforeunload', onBeforeUnload);
+      window.addEventListener('keydown', onKeyDown, true);
+      setProctoringActive(true);
+      setProctorDialogOpen(false);
+      try { localStorage.removeItem('cg_proctor_preflight_ok'); } catch {}
+    } catch {
+      // If user denies, keep dialog open
+    }
+  };
+
   // Start timer only after questions are loaded and timeLimit established
   useEffect(() => {
     if (loadingQuestions) return;
@@ -271,10 +447,11 @@ const Quiz = () => {
     setSubmitting(true);
     try {
       await quizApi.submit({ answers: arr as any, timeTaken: Math.max(0, totalTime) });
-      // On success, go to roadmap where it will generate/fetch and show loading
-      navigate('/dashboard/roadmap', { replace: true });
+      // On success, go to results page
+      navigate('/dashboard/assessment/results', { replace: true });
     } finally {
       setSubmitting(false);
+      cleanupProctoring();
     }
   };
 
@@ -285,11 +462,58 @@ const Quiz = () => {
 
   return (
     <PageContainer>
+      {/* Proctoring start dialog */}
+      <Dialog open={proctorDialogOpen} disableEscapeKeyDown>
+        <DialogTitle>Enable Proctoring</DialogTitle>
+        <DialogContent>
+          {proctorError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {proctorError}
+            </Alert>
+          )}
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            This assessment is proctored. We will:
+          </Typography>
+          <ul style={{ marginLeft: 16, marginTop: 0 }}>
+            <li>Enter fullscreen mode</li>
+            <li>Access your camera and microphone</li>
+            <li>Optionally capture your screen (for monitoring)</li>
+            <li>Monitor tab switching or leaving fullscreen</li>
+          </ul>
+          <Typography variant="caption" sx={{ color: '#666' }}>
+            Leaving fullscreen or switching tabs will generate a warning. After 3 warnings, your test will be auto-submitted.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenExitConfirm(true)} sx={{ color: '#424446' }}>Cancel</Button>
+          <Button variant="contained" onClick={startProctoring} sx={{ backgroundColor: '#462872' }}>Start</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Warnings snackbar */}
+      <Snackbar
+        open={warningOpen}
+        autoHideDuration={2000}
+        onClose={() => setWarningOpen(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert severity={violationCount >= MAX_VIOLATIONS ? 'error' : 'warning'} sx={{ width: '100%' }}>
+          {violationCount >= MAX_VIOLATIONS
+            ? 'Multiple violations detected. Auto-submitting your test...'
+            : `Proctoring violation detected (${violationCount}/${MAX_VIOLATIONS}). Stay in fullscreen and do not switch tabs.`}
+        </Alert>
+      </Snackbar>
       <Header>
         <HeaderTitle variant="h6">
           Career Guidance Quiz <span>{'>'}</span> Section A
         </HeaderTitle>
-        <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Chip
+            label={`Warnings: ${violationCount}/${MAX_VIOLATIONS}`}
+            color={violationCount === 0 ? 'default' : (violationCount < MAX_VIOLATIONS ? 'warning' : 'error') as any}
+            variant={violationCount === 0 ? 'outlined' : 'filled'}
+            size="small"
+          />
           <Button
             variant="outlined"
             startIcon={<ExitToAppIcon />}
@@ -533,7 +757,7 @@ const Quiz = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenExitConfirm(false)}>Cancel</Button>
-          <Button color="error" onClick={() => { setOpenExitConfirm(false); window.history.back(); }}>Exit</Button>
+          <Button color="error" onClick={() => { setOpenExitConfirm(false); cleanupProctoring(); window.history.back(); }}>Exit</Button>
         </DialogActions>
       </Dialog>
 

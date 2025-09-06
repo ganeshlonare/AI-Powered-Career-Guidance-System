@@ -8,6 +8,8 @@ import SignUp from './components/SignUp';
 import SignInWithEmail from './components/SignInWithEmail';
 import Onboarding from './components/Onboarding';
 import Quiz from './components/Quiz';
+import AssessmentInstructions from './components/AssessmentInstructions';
+import AssessmentResults from './components/AssessmentResults';
 import Roadmap from './components/Roadmap';
 import WeekPlan from './components/WeekPlan';
 import DashboardOverview from './components/DashboardOverview';
@@ -80,15 +82,17 @@ function App() {
               <Route path="/signup" element={<SignUp />} />
               <Route path="/signin/email" element={<SignInWithEmail />} />
               <Route path="/onboarding" element={<Onboarding />} />
-              <Route path="/dashboard/assessment" element={<Quiz />} />
-              <Route path="/quiz" element={<Quiz />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
+              <Route path="/assessment/instructions" element={<AssessmentInstructions />} />
               <Route path="/roadmap" element={<Roadmap />} />
               <Route path="/week-plan" element={<WeekPlan />} />
               <Route path="/industry-insights" element={<IndustryInsights />} />
               <Route path="/jobs" element={<Jobs />} />
 
               <Route element={<ProtectedRoute />}>
+                <Route path="/dashboard/assessment" element={<Quiz />} />
+                <Route path="/dashboard/assessment/results" element={<AssessmentResults />} />
+                <Route path="/assessment/results" element={<AssessmentResults />} />
                 <Route path="/dashboard/overview" element={<DashboardOverview />} />
                 <Route path="/dashboard/roadmap" element={<DashboardOverview />}>
                   <Route index element={<DashboardRoadmap />} />
