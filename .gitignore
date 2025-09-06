@@ -24,5 +24,3 @@ dist-ssr
 *.sw?
 
 .env
-Add pagination if history grows large?
-Update other entry points (Roadmap button, Onboarding step, Footer CTA) to route to /assessment/instructions for consistency?
