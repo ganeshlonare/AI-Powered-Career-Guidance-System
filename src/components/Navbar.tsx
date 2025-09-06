@@ -10,10 +10,9 @@ import {
   Select,
   MenuItem,
   Container,
-  Menu,
-  Popover,
   useTheme,
   useMediaQuery,
+  Avatar,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
@@ -179,12 +178,19 @@ const SignUpButton = styled(Button)(({ theme }) => ({
 }));
 
 const Navbar = () => {
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
+  
+  const displayName = React.useMemo(() => {
+    if (!user) return '';
+    const first = user.firstName?.trim();
+    if (first) return first;
+    const email = user.email || '';
+    return email.includes('@') ? email.split('@')[0] : email;
+  }, [user]);
 
   const handleMobileMenuToggle = () => {
     setMobileMenuOpen(!mobileMenuOpen);
@@ -247,14 +253,26 @@ const Navbar = () => {
             </Box>
 
             {!isMobile && (
-              <Box sx={{ display: 'flex', alignItems: 'center', ml: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', ml: 3, gap: 2 }}>
                 {user ? (
-                  <SignUpButton 
-                    onClick={handleGoToClassroom}
-                    endIcon={<ArrowForwardIcon />}
-                  >
-                    Go to Classroom
-                  </SignUpButton>
+                  <>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Typography sx={{ fontSize: '0.95rem', color: '#424446', fontWeight: 500 }}>
+                        Hi, {displayName}
+                      </Typography>
+                      <Avatar 
+                        src={`https://i.pravatar.cc/100?u=${encodeURIComponent(user.email)}`}
+                        alt={displayName}
+                        sx={{ width: 34, height: 34 }}
+                      />
+                    </Box>
+                    <SignUpButton 
+                      onClick={handleGoToClassroom}
+                      endIcon={<ArrowForwardIcon />}
+                    >
+                      Go to Classroom
+                    </SignUpButton>
+                  </>
                 ) : (
                   <SignUpButton onClick={handleSignUpClick}>
                     Sign Up
@@ -267,7 +285,7 @@ const Navbar = () => {
       </AppBar>
 
       {/* Spacer for first navbar only */}
-      <Toolbar sx={{ minHeight: '88px !important' }} /> {/* 72px + 16px padding */}
+      <Toolbar sx={{ minHeight: '80px !important' }} /> {/* 72px + 16px padding */}
 
       <AppBar 
         position="static" 

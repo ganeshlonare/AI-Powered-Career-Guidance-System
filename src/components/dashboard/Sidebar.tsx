@@ -9,7 +9,6 @@ import {
   QuestionAnswer as AssessmentIcon,
   Business as IndustryIcon,
   Description as ResumeIcon,
-  Article as CVIcon,
   Person as UserIcon,
   Group as UsersIcon,
   Message as MessageIcon,
@@ -18,6 +17,7 @@ import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon
 } from '@mui/icons-material';
+import { useAuth } from '../../hooks/useAuth';
 
 interface SidebarProps {
   onCollapse: (collapsed: boolean) => void;
@@ -42,7 +42,7 @@ const SidebarContainer = styled(Box, {
   boxShadow: '4px 0 8px rgba(0, 0, 0, 0.05)',
 }));
 
-const ToggleButton = styled(IconButton)(({ theme }) => ({
+const ToggleButton = styled(IconButton)(() => ({
   position: 'absolute',
   right: '-12px',
   top: '32px',
@@ -59,7 +59,7 @@ const ToggleButton = styled(IconButton)(({ theme }) => ({
 
 const NavLink = styled(Link, {
   shouldForwardProp: (prop) => prop !== 'active' && prop !== 'collapsed'
-})<{ active: boolean; collapsed: boolean }>(({ theme, active, collapsed }) => ({
+})<{ active: boolean; collapsed: boolean }>(({ active, collapsed }) => ({
   display: 'flex',
   alignItems: 'center',
   justifyContent: collapsed ? 'center' : 'flex-start',
@@ -81,7 +81,7 @@ const NavLink = styled(Link, {
   },
 }));
 
-const SectionTitle = styled(Typography)(({ theme }) => ({
+const SectionTitle = styled(Typography)(() => ({
   fontSize: '0.85rem',
   fontWeight: 600,
   textTransform: 'uppercase',
@@ -116,12 +116,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onCollapse }) => {
     onCollapse(newCollapsed);
   };
 
-  // Mock user data (replace with actual user data later)
-  const user = {
-    name: 'John Doe',
-    email: 'john@example.com',
-    avatar: 'https://i.pravatar.cc/150?u=1'
-  };
+  const { user } = useAuth();
+  const displayName = React.useMemo(() => {
+    if (!user) return 'User';
+    const first = user.firstName?.trim();
+    const last = user.lastName?.trim();
+    if (first || last) return [first, last].filter(Boolean).join(' ');
+    const email = user.email || '';
+    return email.includes('@') ? email.split('@')[0] : email;
+  }, [user]);
+  const avatarSrc = user?.email ? `https://i.pravatar.cc/150?u=${encodeURIComponent(user.email)}` : 'https://i.pravatar.cc/150?u=placeholder';
   
   const navItems = [
     { path: '/dashboard/overview', label: 'Dashboard', icon: <DashboardIcon /> },
@@ -149,16 +153,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onCollapse }) => {
 
       <UserSection collapsed={collapsed}>
         {collapsed ? (
-          <Avatar src={user.avatar} sx={{ width: 40, height: 40 }} />
+          <Avatar src={avatarSrc} sx={{ width: 40, height: 40 }} />
         ) : (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Avatar src={user.avatar} sx={{ width: 48, height: 48 }} />
+            <Avatar src={avatarSrc} sx={{ width: 48, height: 48 }} />
             <Box>
               <Typography variant="subtitle1" sx={{ color: '#424446', fontWeight: 500, fontSize: '1rem' }}>
-                {user.name}
+                {displayName}
               </Typography>
               <Typography variant="caption" sx={{ color: '#666', fontSize: '0.85rem' }}>
-                {user.email}
+                {user?.email}
               </Typography>
             </Box>
           </Box>
