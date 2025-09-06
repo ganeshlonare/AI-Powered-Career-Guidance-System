@@ -26,6 +26,7 @@ import OpenInFullIcon from '@mui/icons-material/OpenInFull';
 import YouTube from 'react-youtube';
 import { useNavigate } from 'react-router-dom';
 import { weeklyPlanApi } from '../api/weeklyPlan';
+import { roadmapApi } from '../api/roadmap';
 import type { WeeklyPlanItem } from '../api/weeklyPlan';
 
 interface ModuleData {
@@ -59,13 +60,22 @@ const WeekPlan = () => {
   useEffect(() => {
     (async () => {
       try {
-        const weeks: WeeklyPlanItem[] = await weeklyPlanApi.generate();
-        const mapped: ModuleData[] = (weeks || []).map((w) => ({
+        setError(null);
+        // Some backends require a roadmap to exist prior to generating weekly plan
+        try { await roadmapApi.generate(); } catch {}
+        const weeksResp: any = await weeklyPlanApi.generate();
+        const weeksArr: WeeklyPlanItem[] = Array.isArray(weeksResp)
+          ? weeksResp
+          : (weeksResp?.data?.weeks || weeksResp?.data || weeksResp?.weeks || []);
+        if (!Array.isArray(weeksArr) || weeksArr.length === 0) {
+          throw new Error('No weekly plan available.');
+        }
+        const mapped: ModuleData[] = (weeksArr || []).map((w: any) => ({
           id: Number(w.week),
           title: w.title || `Week ${w.week}`,
           subtitle: '',
           completed: false,
-          lessons: (w.data || []).map((d, idx) => ({
+          lessons: (w.data || []).map((d: any, idx: number) => ({
             id: `${w.week}-${idx + 1}`,
             title: d.subpoint,
             youtube: d.youtube_link || '',
@@ -79,7 +89,7 @@ const WeekPlan = () => {
           setExpanded(`module${mapped[0].id}`);
         }
       } catch (e: any) {
-        setError(e?.message || 'Failed to load weekly plan');
+        setError(e?.details?.message || e?.message || 'Failed to load weekly plan');
       } finally {
         setLoading(false);
       }
@@ -240,6 +250,46 @@ const WeekPlan = () => {
                   <CircularProgress size={20} sx={{ color: '#462872' }} />
                   <span>Preparing your weekly plan…</span>
                 </div>
+              </div>
+            ) : error ? (
+              <div className="p-6">
+                <div className="text-sm text-red-600 mb-3">{error}</div>
+                <Button variant="contained" onClick={() => { setLoading(true); setError(null); setModuleData([]); setTimeout(() => { // re-run effect by simple state change
+                  (async () => {
+                    try {
+                      setError(null);
+                      try { await roadmapApi.generate(); } catch {}
+                      const weeksResp: any = await weeklyPlanApi.generate();
+                      const weeksArr: WeeklyPlanItem[] = Array.isArray(weeksResp)
+                        ? weeksResp
+                        : (weeksResp?.data?.weeks || weeksResp?.data || weeksResp?.weeks || []);
+                      if (!Array.isArray(weeksArr) || weeksArr.length === 0) {
+                        throw new Error('No weekly plan available.');
+                      }
+                      const mapped: ModuleData[] = (weeksArr || []).map((w: any) => ({
+                        id: Number(w.week),
+                        title: w.title || `Week ${w.week}`,
+                        subtitle: '',
+                        completed: false,
+                        lessons: (w.data || []).map((d: any, idx: number) => ({
+                          id: `${w.week}-${idx + 1}`,
+                          title: d.subpoint,
+                          youtube: d.youtube_link || '',
+                          completed: false,
+                        })),
+                      }));
+                      setModuleData(mapped);
+                      if (mapped.length && mapped[0].lessons.length) {
+                        setCurrentLessonId(mapped[0].lessons[0].id);
+                        setExpanded(`module${mapped[0].id}`);
+                      }
+                    } catch (err: any) {
+                      setError(err?.details?.message || err?.message || 'Failed to load weekly plan');
+                    } finally {
+                      setLoading(false);
+                    }
+                  })();
+                }, 0); }} sx={{ backgroundColor: '#462872' }}>Retry</Button>
               </div>
             ) : (
             moduleData.map((module) => (

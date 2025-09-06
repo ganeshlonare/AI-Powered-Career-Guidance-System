@@ -447,8 +447,9 @@ const Quiz = () => {
     setSubmitting(true);
     try {
       await quizApi.submit({ answers: arr as any, timeTaken: Math.max(0, totalTime) });
-      // On success, go to results page
-      navigate('/dashboard/assessment/results', { replace: true });
+      // Mark quiz completed locally for guards and redirect to dashboard roadmap (main flow)
+      try { localStorage.setItem('cg_quiz_completed', '1'); } catch {}
+      navigate('/dashboard/roadmap', { replace: true });
     } finally {
       setSubmitting(false);
       cleanupProctoring();

@@ -22,6 +22,7 @@ import Jobs from './components/Jobs';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import VerifyEmail from './components/auth/VerifyEmail';
+import GlobalGuard from './components/common/GlobalGuard';
 
 const theme = createTheme({
   palette: {
@@ -77,34 +78,36 @@ function App() {
             display: 'flex',
             flexDirection: 'column'
           }}>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/signup" element={<SignUp />} />
-              <Route path="/signin/email" element={<SignInWithEmail />} />
-              <Route path="/onboarding" element={<Onboarding />} />
-              <Route path="/verify-email" element={<VerifyEmail />} />
-              <Route path="/assessment/instructions" element={<AssessmentInstructions />} />
-              <Route path="/roadmap" element={<Roadmap />} />
-              <Route path="/week-plan" element={<WeekPlan />} />
-              <Route path="/industry-insights" element={<IndustryInsights />} />
-              <Route path="/jobs" element={<Jobs />} />
+            <GlobalGuard>
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/signup" element={<SignUp />} />
+                <Route path="/signin/email" element={<SignInWithEmail />} />
+                <Route path="/onboarding" element={<Onboarding />} />
+                <Route path="/verify-email" element={<VerifyEmail />} />
+                <Route path="/assessment/instructions" element={<AssessmentInstructions />} />
+                <Route path="/roadmap" element={<Roadmap />} />
+                <Route path="/week-plan" element={<WeekPlan />} />
+                <Route path="/industry-insights" element={<IndustryInsights />} />
+                <Route path="/jobs" element={<Jobs />} />
 
-              <Route element={<ProtectedRoute />}>
-                <Route path="/dashboard/assessment" element={<Quiz />} />
-                <Route path="/dashboard/assessment/results" element={<AssessmentResults />} />
-                <Route path="/assessment/results" element={<AssessmentResults />} />
-                <Route path="/dashboard/overview" element={<DashboardOverview />} />
-                <Route path="/dashboard/roadmap" element={<DashboardOverview />}>
-                  <Route index element={<DashboardRoadmap />} />
+                <Route element={<ProtectedRoute />}>
+                  <Route path="/dashboard/assessment" element={<Quiz />} />
+                  <Route path="/dashboard/assessment/results" element={<AssessmentResults />} />
+                  <Route path="/assessment/results" element={<AssessmentResults />} />
+                  <Route path="/dashboard/overview" element={<DashboardOverview />} />
+                  <Route path="/dashboard/roadmap" element={<DashboardOverview />}>
+                    <Route index element={<DashboardRoadmap />} />
+                  </Route>
+                  <Route path="/dashboard/profile" element={<DashboardOverview />}>
+                    <Route index element={<Profile />} />
+                  </Route>
+                  <Route path="/dashboard/resume-builder" element={<DashboardOverview />}>
+                    <Route index element={<ResumeBuilder />} />
+                  </Route>
                 </Route>
-                <Route path="/dashboard/profile" element={<DashboardOverview />}>
-                  <Route index element={<Profile />} />
-                </Route>
-                <Route path="/dashboard/resume-builder" element={<DashboardOverview />}>
-                  <Route index element={<ResumeBuilder />} />
-                </Route>
-              </Route>
-            </Routes>
+              </Routes>
+            </GlobalGuard>
           </Box>
         </Router>
       </AuthProvider>

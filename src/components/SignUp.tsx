@@ -115,12 +115,10 @@ const SignUp = () => {
     navigate('/signin/email');
   };
 
-  // If already authenticated, redirect to dashboard
+  // If already authenticated, let GlobalGuard decide the correct destination
   React.useEffect(() => {
-    if (user) {
-      navigate('/dashboard/overview', { replace: true });
-    }
-  }, [user, navigate]);
+    if (!user) return;
+  }, [user]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,9 +130,9 @@ const SignUp = () => {
     setSubmitting(true);
     try {
       await register({ email, password, firstName, lastName });
-      setSuccess('Account created successfully! Please complete the onboarding form.');
-      // Redirect to onboarding page
-      navigate('/onboarding', { replace: true });
+      setSuccess('Account created successfully! Please check your email to verify your account.');
+      // Redirect to email verification page
+      navigate('/verify-email', { replace: true });
     } catch (err: any) {
       setError(err?.message || 'Failed to create account. Please try again.');
     } finally {
